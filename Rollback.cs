@@ -6,6 +6,8 @@ using System;
 using System.IO;
 using ModShardLauncher;
 using ModShardLauncher.Mods;
+using UndertaleModLib;
+using UndertaleModLib.Models;
 
 namespace Rollback;
 public class Rollback : Mod
@@ -28,6 +30,8 @@ public class Rollback : Mod
 
         UpdateWeaponArmorTable("gml_GlobalScript_table_weapons", ModFiles, "gml_GlobalScript_table_weapons.gml");
         UpdateWeaponArmorTable("gml_GlobalScript_table_armor", ModFiles, "gml_GlobalScript_table_armor.gml");
+        AddToWeaponTable(ModFiles, "derived_weapons.gml");
+        AddToArmorTable(ModFiles, "derived_armor.gml");
     }
 
     private void ExportAllTables()
@@ -70,7 +74,67 @@ public class Rollback : Mod
 
         ModLoader.SetTable(newlines, table);
 
+        // ExportTable(table, "ModSources/Rollback/tmp/test");
+    }
+
+    private void AddToWeaponTable(ModFile modFile, string iniFile)
+    {
+        AddToWeaponArmorTable("gml_GlobalScript_table_weapons", modFile, iniFile, "weapon");
+    }
+
+    private void AddToArmorTable(ModFile modFile, string iniFile)
+    {
+        AddToWeaponArmorTable("gml_GlobalScript_table_armor", modFile, iniFile, "armor");
+    }
+
+    private void AddToWeaponArmorTable(string table, ModFile modFile, string iniFile, string type)
+    {
+        IniFile ini = new IniFile(modFile, iniFile);
+        List<string> lines = Msl.ThrowIfNull(ModLoader.GetTable(table));
+        List<string> header = lines[0].Split(';').ToList();
+
+        List<string> sections = ini.GetSections();
+        foreach (string section in sections)
+        {
+            if (!ini.KeyExists(section, "parent"))
+                continue;
+            
+            string parent = ini.GetValue(section, "parent");
+            string line = Msl.ThrowIfNull(lines.Find(li => li.StartsWith(parent + ';')));
+            string[] record = line.Split(';');
+
+            List<string> keys = ini.GetKeys(section);
+            foreach (string key in keys)
+            {
+                int idx = header.FindIndex(h => h == key);
+                if (idx == -1 && attribute.ContainsKey(key))
+                    idx = header.FindIndex(h => h == attribute[key]);
+                
+                if (idx == -1)
+                    continue;
+
+                string value = ini.GetValue(section, key);
+                if (key == "name" && value != section)
+                {
+                    AddEquipmentTranslation(section, value, type, parent);
+                    value = section;                    
+                }
+
+                record[idx] = value;
+            }
+
+            lines.Add(string.Join(';', record));
+
+            CopySpriteFrom(section, parent, "s_char_");
+            CopySpriteFrom(section, parent, "s_charleft_");
+            CopySpriteFrom(section, parent, "s_loot_");
+            CopySpriteFrom(section, parent, "s_inv_");
+        }
+
+        ModLoader.SetTable(lines, table);
+
         ExportTable(table, "ModSources/Rollback/tmp/test");
+        ExportTable("gml_GlobalScript_table_equipment", "ModSources/Rollback/tmp/test");
     }
 
     private static void ExportTable(string table, string folder)
@@ -169,5 +233,80 @@ public class Rollback : Mod
                 attribute[record[3]] = key;
             }
         }
+    }
+
+    private void AddEquipmentTranslation(string id, string name, string type, string parent)
+    {
+        string nameln = $"{id};{id};{id};{name};" + string.Concat(Enumerable.Repeat($"{id};", 9));
+        string locator = ";" + string.Concat(Enumerable.Repeat($"{type}_name_end;", 12));
+
+        List<string> lines = Msl.ThrowIfNull(ModLoader.GetTable("gml_GlobalScript_table_equipment"));
+        lines.Insert(lines.IndexOf(locator), nameln);
+    
+        List<string[]> descs = GetTableRange("gml_GlobalScript_table_equipment", $"{type}_desc;{type}_desc;", $"{type}_desc_end;{type}_desc_end;");
+        string[] record = Msl.ThrowIfNull(descs.Find(li => li[0] == parent));
+        record[0] = id;
+
+        string locatorDesc = ";" + string.Concat(Enumerable.Repeat($"{type}_desc_end;", 12));
+        lines.Insert(lines.IndexOf(locatorDesc), string.Join(';', record));
+
+        ModLoader.SetTable(lines, "gml_GlobalScript_table_equipment");
+    }
+
+    private void CopySpriteFrom(string newequip, string oldequip, string prefix)
+    {
+            string oldspr = GetSpriteName(prefix, oldequip);
+            string newspr = GetSpriteName(prefix, newequip);
+
+            UndertaleSprite? parent_spr = DataLoader.data.Sprites.FirstOrDefault(t => t.Name.Content == oldspr.ToLower());
+            parent_spr ??= DataLoader.data.Sprites.First(t => t.Name.Content == oldspr);
+
+            var textures = new UndertaleSimpleList<UndertaleSprite.TextureEntry>();
+            foreach (var item in parent_spr.Textures)
+            {
+                UndertaleSprite.TextureEntry newEntry = new()
+                {
+                    Texture = item.Texture
+                };
+
+                textures.Add(newEntry);
+            }
+
+            UndertaleSprite newSprite = new()
+            {
+                Name = DataLoader.data.Strings.MakeString(newspr),
+
+                Width = parent_spr.Width,
+                Height = parent_spr.Height,
+
+                MarginLeft = parent_spr.MarginLeft,
+                MarginRight = parent_spr.MarginRight,
+                MarginTop = parent_spr.MarginTop,
+                MarginBottom = parent_spr.MarginBottom,
+
+                Transparent = parent_spr.Transparent,
+                Smooth = parent_spr.Smooth,
+                Preload = parent_spr.Preload,
+                BBoxMode = parent_spr.BBoxMode,
+                SepMasks = parent_spr.SepMasks,
+
+                OriginX = parent_spr.OriginX,
+                OriginY = parent_spr.OriginX,
+                
+                Textures = textures,
+                CollisionMasks = parent_spr.CollisionMasks,
+                IsSpecialType = parent_spr.IsSpecialType,
+                SpineVersion = parent_spr.SpineVersion,
+                SSpriteType = parent_spr.SSpriteType,
+                GMS2PlaybackSpeed = parent_spr.GMS2PlaybackSpeed,
+                GMS2PlaybackSpeedType = parent_spr.GMS2PlaybackSpeedType
+            };
+
+            DataLoader.data.Sprites.Add(newSprite);
+    }
+
+    private string GetSpriteName(string prefix, string id)
+    {
+        return prefix + id.Replace(" ", "").Replace("'", "");
     }
 }

@@ -81,7 +81,6 @@ MaxDuration=90
 限制移动几率=10
 破衡几率=10
 技能精力消耗=50
-咒法精力消耗=50
 Balance=0
 tags=unique
 
@@ -103,7 +102,6 @@ MaxDuration=110
 出血几率=15
 限制移动几率=15
 技能精力消耗=50
-咒法精力消耗=50
 精力吸取=10
 Balance=0
 tags=unique
@@ -147,7 +145,6 @@ MaxDuration=85
 击退几率=12
 破衡几率=12
 技能精力消耗=50
-咒法精力消耗=50
 Balance=0
 tags=aldor
 

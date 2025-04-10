@@ -187,6 +187,30 @@ tags=fjall
 fragment_cloth03=1
 fragment_leather01=1
 
+[Norrheim Helmet]
+name=诺尔海姆头盔
+Tier=4
+id=head11
+Slot=Head
+class=Light
+rarity=Common
+Mat=leather
+Price=1325
+Markup=1.15
+MaxDuration=120
+防护=7
+闪躲几率=-3
+暴击几率=3
+暴击效果=10
+出血抗性=25
+控制抗性=15
+物理抗性=10
+钝击抗性=5
+撕裂抗性=5
+tags=fjall
+IsOpen=1
+fragment_leather01=3
+
 [Norse Belt]
 name=诺斯腰带
 Tier=3
